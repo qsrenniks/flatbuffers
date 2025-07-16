@@ -84,7 +84,7 @@ class LuaBfbsGenerator : public BaseBfbsGenerator {
       FLATBUFFERS_OVERRIDE {
     options_ = options;
     if (!GenerateEnums(schema->enums())) { return ERROR; }
-    if (!GenerateObjects(schema->objects(), schema->root_table())) {
+    if (!GenerateObjects(schema)) {
       return ERROR;
     }
     return OK;
@@ -92,8 +92,8 @@ class LuaBfbsGenerator : public BaseBfbsGenerator {
 
   using BaseBfbsGenerator::GenerateCode;
 
-  Status GenerateCode(const Parser &, const std::string &,
-                      const std::string &) override {
+  Status GenerateCode(const Parser &parser, const std::string &path,
+                      const std::string &file_name) override {
     return Status::NOT_IMPLEMENTED;
   }
 
@@ -165,8 +165,9 @@ class LuaBfbsGenerator : public BaseBfbsGenerator {
   }
 
   bool GenerateObjects(
-      const flatbuffers::Vector<flatbuffers::Offset<r::Object>> *objects,
-      const r::Object *root_object) {
+	  const r::Schema *schema) {
+	const flatbuffers::Vector<flatbuffers::Offset<r::Object>> *objects = schema->objects();
+	const r::Object *root_object = schema->root_table();
     ForAllObjects(objects, [&](const r::Object *object) {
       std::string code;
 
@@ -447,6 +448,14 @@ class LuaBfbsGenerator : public BaseBfbsGenerator {
         code += "end\n";
         code += "\n";
       }
+
+	  const flatbuffers::String *file_identifier = schema->file_ident();
+	  if (file_identifier && !file_identifier->empty()) {
+		code += "function " + object_name + ".GetIdentifier()\n";
+		code += "  return \"" + file_identifier->str() + "\"\n";
+		code += "end\n";
+		code += "\n";
+	  }
 
       EmitCodeBlock(code, object_name, ns, object->declaration_file()->str());
     });
