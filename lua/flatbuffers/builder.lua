@@ -25,6 +25,7 @@ local Float64   = N.Float64
 
 local MAX_BUFFER_SIZE = 0x80000000 -- 2 GB
 local VtableMetadataFields = 2
+local FILE_IDENTIFIER_LENGTH = 4
 
 local getAlignSize = compat.GetAlignSize
 
@@ -296,8 +297,15 @@ function mt:Slot(slotnum)
     self.currentVTable[slotnum + 1] = self:Offset()
 end
 
-local function finish(self, rootTable, sizePrefix)
+local function finish(self, rootTable, fileIdentifier, sizePrefix)
     UOffsetT:EnforceNumber(rootTable)
+	if fileIdentifier then
+		local fileIdentifierLength = #fileIdentifier
+		self:Prep(4, fileIdentifierLength)
+		local h = self.head - 4
+		self.head = h
+		self.bytes:Set(fileIdentifier, h)
+	end
     self:Prep(self.minalign, sizePrefix and 8 or 4)
     self:PrependUOffsetTRelative(rootTable)
     if sizePrefix then
@@ -310,11 +318,15 @@ local function finish(self, rootTable, sizePrefix)
 end
 
 function mt:Finish(rootTable)
-    return finish(self, rootTable, false)
+    return finish(self, rootTable, nil, false)
 end
 
-function mt:FinishSizePrefixed(rootTable)
-    return finish(self, rootTable, true)
+function mt:Finish(rootTable, fileIdentifier)
+	return finish(self, rootTable, fileIdentifier, false)
+end
+
+function mt:FinishSizePrefixed(rootTable, fileIdentifier)
+    return finish(self, rootTable, fileIdentifier, true)
 end
 
 function mt:Prepend(flags, off)
